@@ -4,18 +4,24 @@
 ========================================================================================
 */
 
+def valid_params = [
+    umi_type       : ['TV', 'NYR'],
+ ]
+
 def summary_params = NfcoreSchema.paramsSummaryMap(workflow, params)
 
 // Validate input parameters
-WorkflowInsertseq.initialise(params, log)
+WorkflowInsertseq.initialise(params, log, valid_params)
 
-// TODO nf-core: Add all file path parameters for the pipeline to the list below
 // Check input path parameters to see if they exist
-def checkPathParamList = [ params.input, params.multiqc_config, params.fasta ]
+def checkPathParamList = [ params.input, params.genome, params.refVector, params.repeats ]
+
 for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
 
 // Check mandatory parameters
 if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input samplesheet not specified!' }
+if (params.adapter_1F) {ch_adapter = params.adapter_1F} else { exit 1, 'Adapter sequence not specified!' }
+if (params.payload) {ch_payload = params.payload} else { exit 1, 'Payload primer sequence not specified!' }
 
 /*
 ========================================================================================
@@ -39,6 +45,8 @@ def modules = params.modules.clone()
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
 //
 include { INPUT_CHECK } from '../subworkflows/local/input_check' addParams( options: [:] )
+
+include{ ADAPTER_TRANSFORMATION } from '../subworkflow/local/adapter_transformation' addParams( options: [:] )
 
 /*
 ========================================================================================
@@ -68,6 +76,19 @@ def multiqc_report = []
 workflow INSERTSEQ {
 
     ch_versions = Channel.empty()
+
+    //
+    // MODULE: prepare adapter sequences
+    //
+    ADAPTER_TRANSFORMATION (
+        ch_adapter,
+        ch_payload,
+        params.adapter_2
+    )
+    ch_versions = ch_versions.mix(ADAPTER_TRANSFORMATION.out.versions.first().ifEmpty(null))
+
+
+
 
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files

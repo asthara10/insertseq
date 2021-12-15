@@ -7,12 +7,34 @@ class WorkflowInsertseq {
     //
     // Check and validate parameters
     //
-    public static void initialise(params, log) {
+    public static void initialise(params, log, valid_params) {
         genomeExistsError(params, log)
 
-        if (!params.fasta) {
-            log.error "Genome fasta file not specified with e.g. '--fasta genome.fa' or via a detectable config file."
+        // Genome
+        if (!params.genome) {
+            log.error "Genome fasta file not specified with e.g. '--genome genome.fa' or via a detectable config file."
             System.exit(1)
+        }
+
+        // Adapters
+        if (!params.adapter_1F) {
+            log.error "First adapter sequence not specified with e.g. '--adapter_1 ACTG' or via a detectable config file."
+            System.exit(1)
+        }
+        if (!params.adapter_2) {
+            log.error "Second adapter sequence not specified with e.g. '--adapter_2 ACTG' or via a detectable config file."
+            System.exit(1)
+        }
+        if (!params.payload) {
+            log.error "Payload primer sequence not specified with e.g. '--payload ACTG' or via a detectable config file."
+            System.exit(1)
+        }
+
+        if (!params.skip_umiclustering) {
+            if (!valid_params["umi_type"].contains(params.umi_type)) {
+                log.error "Invalid option: '${params.umi_type}'. Valid options for '--umi_type': ${valid_params['umi_type'].join(', ')}."
+                System.exit(1)
+            }
         }
     }
 
