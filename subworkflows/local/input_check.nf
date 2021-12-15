@@ -15,30 +15,26 @@ workflow INPUT_CHECK {
         .csv
         .splitCsv ( header:true, sep:',' )
         .map { create_fastq_channels(it) }
-        .set { reads }
+        .set { sequences }
 
     emit:
-    reads                                     // channel: [ val(meta), [ reads ] ]
+    sequences                                 // channel: [ val(meta), [ adapter_1F, payload ] ]
     versions = SAMPLESHEET_CHECK.out.versions // channel: [ versions.yml ]
 }
 
-// Function to get list of [ meta, [ fastq_1, fastq_2 ] ]
+// Function to get list of [ meta, [ adapter_1F, payload ] ]
 def create_fastq_channels(LinkedHashMap row) {
     def meta = [:]
-    meta.id           = row.sample
-    meta.single_end   = row.single_end.toBoolean()
+    meta.id           = row.fastq
 
     def array = []
-    if (!file(row.fastq_1).exists()) {
-        exit 1, "ERROR: Please check input samplesheet -> Read 1 FastQ file does not exist!\n${row.fastq_1}"
+    if (!file(row.adapter_1F).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Adapter_1F sequence does not exist!\n${row.adapter_1F}"
     }
-    if (meta.single_end) {
-        array = [ meta, [ file(row.fastq_1) ] ]
-    } else {
-        if (!file(row.fastq_2).exists()) {
-            exit 1, "ERROR: Please check input samplesheet -> Read 2 FastQ file does not exist!\n${row.fastq_2}"
-        }
-        array = [ meta, [ file(row.fastq_1), file(row.fastq_2) ] ]
+    if (!file(row.payload).exists()) {
+        exit 1, "ERROR: Please check input samplesheet -> Payload primer sequence does not exist!\n${row.payload}"
     }
+    array = [ meta, [ file(row.adapter_1F), file(row.payload) ] ]
+
     return array
 }

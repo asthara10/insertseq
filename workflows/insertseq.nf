@@ -20,8 +20,6 @@ for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true
 
 // Check mandatory parameters
 if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input samplesheet not specified!' }
-if (params.adapter_1F) {ch_adapter = params.adapter_1F} else { exit 1, 'Adapter sequence not specified!' }
-if (params.payload) {ch_payload = params.payload} else { exit 1, 'Payload primer sequence not specified!' }
 
 /*
 ========================================================================================
@@ -78,25 +76,32 @@ workflow INSERTSEQ {
     ch_versions = Channel.empty()
 
     //
-    // MODULE: prepare adapter sequences
-    //
-    ADAPTER_TRANSFORMATION (
-        ch_adapter,
-        ch_payload,
-        params.adapter_2
-    )
-    ch_versions = ch_versions.mix(ADAPTER_TRANSFORMATION.out.versions.first().ifEmpty(null))
-
-
-
-
-    //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
     //
     INPUT_CHECK (
         ch_input
     )
+    .sequences
+    .map {
+        meta, adapter ->
+            meta.id = meta.id.split('_')[0..-2].join('_')
+            [ meta, adapter ] }
+    .groupTuple(by: [0])
+    .branch {
+        meta, adapter ->
+            return [ meta, adapter.flatten() ]
+    }
+    .set { ch_adapters }
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
+
+    //
+    // MODULE: prepare adapter sequences
+    //
+    ADAPTER_TRANSFORMATION (
+        ch_adapter,
+        params.adapter_2
+    )
+    ch_versions = ch_versions.mix(ADAPTER_TRANSFORMATION.out.versions.first().ifEmpty(null))
 
     //
     // MODULE: Run FastQC
