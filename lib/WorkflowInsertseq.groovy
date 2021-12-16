@@ -8,7 +8,7 @@ class WorkflowInsertseq {
     // Check and validate parameters
     //
     public static void initialise(params, log, valid_params) {
-        genomeExistsError(params, log)
+        //genomeExistsError(params, log)
 
         // Genome
         if (!params.genome) {
@@ -17,20 +17,20 @@ class WorkflowInsertseq {
         }
 
         // Adapters
-        if (!params.adapter_1F) {
-            log.error "First adapter sequence not specified with e.g. '--adapter_1 ACTG' or via a detectable config file."
-            System.exit(1)
-        }
         if (!params.adapter_2) {
             log.error "Second adapter sequence not specified with e.g. '--adapter_2 ACTG' or via a detectable config file."
+            System.exit(1)
+        }
+        /*if (!params.adapter_1F) {
+            log.error "First adapter sequence not specified with e.g. '--adapter_1 ACTG' or via a detectable config file."
             System.exit(1)
         }
         if (!params.payload) {
             log.error "Payload primer sequence not specified with e.g. '--payload ACTG' or via a detectable config file."
             System.exit(1)
-        }
+        }*/
 
-        if (!params.skip_umiclustering) {
+        if (!params.skip_umi_clustering) {
             if (!valid_params["umi_type"].contains(params.umi_type)) {
                 log.error "Invalid option: '${params.umi_type}'. Valid options for '--umi_type': ${valid_params['umi_type'].join(', ')}."
                 System.exit(1)

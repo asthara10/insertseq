@@ -14,7 +14,7 @@ def summary_params = NfcoreSchema.paramsSummaryMap(workflow, params)
 WorkflowInsertseq.initialise(params, log, valid_params)
 
 // Check input path parameters to see if they exist
-def checkPathParamList = [ params.input, params.genome, params.refVector, params.repeats ]
+def checkPathParamList = [ params.input, params.genome, params.ref_vector, params.repeats ]
 
 for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
 
@@ -39,12 +39,12 @@ ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multi
 // Don't overwrite global params.modules, create a copy instead and use that within the main script.
 def modules = params.modules.clone()
 
+include{ ADAPTER_TRANSFORMATION } from '../modules/local/adapter_transformation' addParams( options: [:] )
+
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
 //
 include { INPUT_CHECK } from '../subworkflows/local/input_check' addParams( options: [:] )
-
-include{ ADAPTER_TRANSFORMATION } from '../subworkflow/local/adapter_transformation' addParams( options: [:] )
 
 /*
 ========================================================================================
@@ -58,6 +58,9 @@ multiqc_options.args += params.multiqc_title ? Utils.joinModuleArgs(["--title \"
 //
 // MODULE: Installed directly from nf-core/modules
 //
+include { NANOPLOT } from '../modules/nf-core/modules/nanoplot/main'  addParams( options: [] )
+
+
 include { FASTQC  } from '../modules/nf-core/modules/fastqc/main'  addParams( options: modules['fastqc'] )
 include { MULTIQC } from '../modules/nf-core/modules/multiqc/main' addParams( options: multiqc_options   )
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/modules/custom/dumpsoftwareversions/main'  addParams( options: [publish_files : ['_versions.yml':'']] )
@@ -84,24 +87,34 @@ workflow INSERTSEQ {
     .sequences
     .map {
         meta, adapter ->
-            meta.id = meta.id.split('_')[0..-2].join('_')
+            meta.id = meta.baseName
             [ meta, adapter ] }
     .groupTuple(by: [0])
     .branch {
         meta, adapter ->
-            return [ meta, adapter.flatten() ]
+            adapters: adapter.size() > 1
+                return [ meta.id, adapter.flatten() ]
+            files: adapter.size() > 1
+                return [ meta.id, meta]
     }
-    .set { ch_adapters }
+    .set { ch_inputs }
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
 
     //
     // MODULE: prepare adapter sequences
     //
+
     ADAPTER_TRANSFORMATION (
-        ch_adapter,
+        ch_inputs.adapters,
         params.adapter_2
     )
+    adapter1 = ADAPTER_TRANSFORMATION.out.adapter1
+    adapter2 = ADAPTER_TRANSFORMATION.out.adapter2
     ch_versions = ch_versions.mix(ADAPTER_TRANSFORMATION.out.versions.first().ifEmpty(null))
+
+    NANOPLOT {
+        ch_inputs.files
+    }
 
     //
     // MODULE: Run FastQC

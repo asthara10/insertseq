@@ -2,13 +2,12 @@
 include { saveFiles; getProcessName } from './functions'
 
 params.options = [:]
-options        = initOptions(params.options)
 
 process ADAPTER_TRANSFORMATION {
     label "process_low"
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'pipeline_info', meta:meta, publish_by_meta:['id']) }
+        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'pipeline_info', meta:[:], publish_by_meta:[]) }
 
     conda (params.enable_conda ? "conda-forge::sed=4.7" : null)
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
@@ -19,12 +18,12 @@ process ADAPTER_TRANSFORMATION {
 
     input:
     tuple val(meta), val(adapter_1F), val(payload)
-    params.adapter_2
+    val adapter_2
 
     output:
-    tuple val(meta), env(adapter_1m),                , emit: adapter1
+    tuple val(meta), env(adapter_1m)                 , emit: adapter1
     tuple val(meta), env(adapter_2m), env(payload_rc), emit: adapter2
-    path "versions.yml",                               emit: versions
+    path "versions.yml"                              , emit: versions
 
     script: 
     """
