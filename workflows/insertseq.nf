@@ -36,6 +36,9 @@ ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multi
 ========================================================================================
 */
 
+//
+// MODULE: Loaded from modules/local/
+//
 // Don't overwrite global params.modules, create a copy instead and use that within the main script.
 def modules = params.modules.clone()
 
@@ -61,8 +64,6 @@ multiqc_options.args += params.multiqc_title ? Utils.joinModuleArgs(["--title \"
 include { NANOPLOT } from '../modules/nf-core/modules/nanoplot/main'  addParams( options: [] )
 
 
-include { FASTQC  } from '../modules/nf-core/modules/fastqc/main'  addParams( options: modules['fastqc'] )
-include { MULTIQC } from '../modules/nf-core/modules/multiqc/main' addParams( options: multiqc_options   )
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/modules/custom/dumpsoftwareversions/main'  addParams( options: [publish_files : ['_versions.yml':'']] )
 
 /*
@@ -85,17 +86,11 @@ workflow INSERTSEQ {
         ch_input
     )
     .sequences
-    .map {
-        meta, adapter ->
-            meta.id = meta.baseName
-            [ meta, adapter ] }
-    .groupTuple(by: [0])
-    .branch {
-        meta, adapter ->
-            adapters: adapter.size() > 1
-                return [ meta.id, adapter.flatten() ]
-            files: adapter.size() > 1
-                return [ meta.id, meta]
+    .multiMap {
+        meta, value ->
+            all_values = value.flatten()
+            files: [meta, all_values[0]]
+            adapters: [meta, all_values[1], all_values[2]]
     }
     .set { ch_inputs }
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
@@ -115,16 +110,11 @@ workflow INSERTSEQ {
     NANOPLOT {
         ch_inputs.files
     }
+    .set { ch_nanoplot }
+    ch_versions = ch_versions.mix(NANOPLOT.out.versions.first().ifEmpty(null))
 
-    //
-    // MODULE: Run FastQC
-    //
-    FASTQC (
-        INPUT_CHECK.out.reads
-    )
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
 
-    CUSTOM_DUMPSOFTWAREVERSIONS (
+    /*CUSTOM_DUMPSOFTWAREVERSIONS (
         ch_versions.unique().collectFile(name: 'collated_versions.yml')
     )
 
@@ -139,13 +129,8 @@ workflow INSERTSEQ {
     ch_multiqc_files = ch_multiqc_files.mix(ch_multiqc_custom_config.collect().ifEmpty([]))
     ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
     ch_multiqc_files = ch_multiqc_files.mix(CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect())
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
-
-    MULTIQC (
-        ch_multiqc_files.collect()
-    )
-    multiqc_report = MULTIQC.out.report.toList()
-    ch_versions    = ch_versions.mix(MULTIQC.out.versions)
+    //ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
+    */
 }
 
 /*

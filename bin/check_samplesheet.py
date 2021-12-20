@@ -81,7 +81,7 @@ def check_samplesheet(file_in, file_out):
 
             ## Check sample name entries
             fastq, adapter_1F, payload = lspl[: len(HEADER)]
-            sample = sample.replace(" ", "_")
+            sample = fastq.replace(" ", "_")
             if not sample:
                 print_error("Sample entry has not been specified!", "Line", line)
 
@@ -89,9 +89,9 @@ def check_samplesheet(file_in, file_out):
             if fastq:
                 if fastq.find(" ") != -1:
                     print_error("FastQ file contains spaces!", "Line", line)
-                if not fastq.endswith(".fastq.gz") and not fastq.endswith(".fq.gz"):
+                if not fastq.endswith(".fastq.gz") and not fastq.endswith(".fq.gz") and not fastq.endswith(".fq") and not fastq.endswith(".fastq"):
                     print_error(
-                        "FastQ file does not have extension '.fastq.gz' or '.fq.gz'!",
+                        "FastQ file does not have extension '.fastq', '.fq', .fastq.gz' or '.fq.gz'!",
                         "Line",
                         line,
                     )
