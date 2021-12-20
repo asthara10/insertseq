@@ -1,13 +1,21 @@
+// Import generic module functions
+include { saveFiles; getProcessName; getSoftwareName } from '../functions'
+
+params.options = [:]
+
 process NANOPLOT {
     tag "$meta.id"
     label 'process_low'
     publishDir "${params.outdir}",
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'nanoplot', meta:meta, publish_by_meta:['id']) }
-    conda (params.enable_conda ? 'bioconda::nanoplot=1.38.0' : null)
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/nanoplot:1.38.0--pyhdfd78af_0' :
-        'quay.io/biocontainers/nanoplot:1.38.0--pyhdfd78af_0' }"
+    
+    conda (params.enable_conda ? "conda-forge::python=1.39.0" : null)
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "https://depot.galaxyproject.org/singularity/nanoplot:1.39.0--pyhdfd78af_0"
+    } else {
+        container "quay.io/biocontainers/nanoplot:1.39.0--pyhdfd78af_0"
+    }
 
     input:
     tuple val(meta), path(ontfile)
@@ -21,11 +29,15 @@ process NANOPLOT {
 
     script:
     def args = task.ext.args ?: ''
-    def input_file = ("$ontfile".endsWith(".fastq.gz")) ? "--fastq ${ontfile}" :
+    def input_file = ("$ontfile".endsWith(".fastq.gz") | 
+        "$ontfile".endsWith(".fastq") | 
+        "$ontfile".endsWith(".fq.gz") | 
+        "$ontfile".endsWith(".fq")) ? "--fastq ${ontfile}" :
         ("$ontfile".endsWith(".txt")) ? "--summary ${ontfile}" : ''
     """
     NanoPlot \\
         $args \\
+        -p $meta.id \\
         -t $task.cpus \\
         $input_file
     cat <<-END_VERSIONS > versions.yml

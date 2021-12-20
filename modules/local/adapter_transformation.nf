@@ -1,5 +1,5 @@
 // Import generic module functions
-include { saveFiles; getProcessName } from './functions'
+include { saveFiles; getProcessName; getSoftwareName } from './functions'
 
 params.options = [:]
 
@@ -9,11 +9,11 @@ process ADAPTER_TRANSFORMATION {
         mode: params.publish_dir_mode,
         saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'pipeline_info', meta:[:], publish_by_meta:[]) }
 
-    conda (params.enable_conda ? "conda-forge::sed=4.7" : null)
+    conda (params.enable_conda ? "conda-forge::python=3.8.3" : null)
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "https://containers.biocontainers.pro/s3/SingImgsRepo/biocontainers/v1.2.0_cv1/biocontainers_v1.2.0_cv1.img"
+        container "https://depot.galaxyproject.org/singularity/python:3.8.3"
     } else {
-        container "biocontainers/biocontainers:v1.2.0_cv1"
+        container "quay.io/biocontainers/python:3.8.3"
     }
 
     input:
@@ -27,13 +27,13 @@ process ADAPTER_TRANSFORMATION {
 
     script: 
     """
-    payload_rc=`echo $payload | tr ACGTacgt TGCATGCA | rev`
+    payload_rc=`echo $payload | tr ACGTacgt TGCATGCA | sed -r 'G;:a;s/^(.)(.*\\n)/\\2\\1/;ta;s/\\n//'`
     adapter_1m=`echo $adapter_1F | tr acgt ACGT`
     adapter_2m=`echo $adapter_2 | tr acgt ACGT`
 
     cat <<-END_VERSIONS > versions.yml
     ${getProcessName(task.process)}:
-        ${getSoftwareName(task.process)}: \$(echo \$(cat --version 2>&1) | sed 's/^.*coreutils) //; s/ .*\$//')
+        python: \$(python --version | sed 's/Python //g')
     END_VERSIONS
     """
 }
