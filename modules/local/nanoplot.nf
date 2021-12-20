@@ -1,5 +1,5 @@
 // Import generic module functions
-include { saveFiles; getProcessName; getSoftwareName } from '../functions'
+include { saveFiles; getProcessName; getSoftwareName } from './functions'
 
 params.options = [:]
 
@@ -37,7 +37,6 @@ process NANOPLOT {
     """
     NanoPlot \\
         $args \\
-        -p $meta.id \\
         -t $task.cpus \\
         $input_file
     cat <<-END_VERSIONS > versions.yml

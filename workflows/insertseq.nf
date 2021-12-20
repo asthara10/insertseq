@@ -43,7 +43,8 @@ ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multi
 def modules = params.modules.clone()
 
 include{ ADAPTER_TRANSFORMATION } from '../modules/local/adapter_transformation' addParams( options: [:] )
-include { NANOPLOT } from '../modules/local/nanoplot/main'  addParams( options: [:] )
+include { NANOPLOT } from '../modules/local/nanoplot'  addParams( options: [:] )
+include { NANOFILT } from '../modules/local/nanofilt'  addParams( options: [:] )
 
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
@@ -56,8 +57,8 @@ include { INPUT_CHECK } from '../subworkflows/local/input_check' addParams( opti
 ========================================================================================
 */
 
-def multiqc_options   = modules['multiqc']
-multiqc_options.args += params.multiqc_title ? Utils.joinModuleArgs(["--title \"$params.multiqc_title\""]) : ''
+//def multiqc_options   = modules['multiqc']
+//multiqc_options.args += params.multiqc_title ? Utils.joinModuleArgs(["--title \"$params.multiqc_title\""]) : ''
 
 //
 // MODULE: Installed directly from nf-core/modules
@@ -96,6 +97,8 @@ workflow INSERTSEQ {
     .set { ch_inputs }
     ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
 
+    ch_inputs.files.multiMap { it -> plot: filter: it }.set { input }
+
     //
     // MODULE: prepare adapter sequences
     //
@@ -111,10 +114,17 @@ workflow INSERTSEQ {
     // MODULE: run NanoPlot to assess read quality and length
     //
     NANOPLOT {
-        ch_inputs.files
+        input.plot
     }
     .set { ch_nanoplot }
     ch_versions = ch_versions.mix(NANOPLOT.out.versions.first().ifEmpty(null))
+
+    //
+    // MODULE: filter reads by quality
+    //
+    NANOFILT {
+        input.filter
+    }
 
 
     /*CUSTOM_DUMPSOFTWAREVERSIONS (
